@@ -43,6 +43,7 @@ class BibTexPlugin(BasePlugin):
         ("bib_command", config_options.Type(str, default="\\bibliography")),
         ("bib_by_default", config_options.Type(bool, default=True)),
         ("full_bib_command", config_options.Type(str, default="\\full_bibliography")),
+        ("list_bib_command", config_options.Type(str, default="\\list_bibliography")),
         ("csl_file", config_options.Type(str, default="")),
         ("cite_inline", config_options.Type(bool, default=False)),
         ("footnote_format", config_options.Type(str, default="{number}")),
@@ -132,6 +133,7 @@ class BibTexPlugin(BasePlugin):
         3. Insert formatted cite keys into text
         4. Insert the bibliography into the markdown
         5. Insert the full bibliograph into the markdown
+        6. Insert all bibliography available
         """
 
         # 1. Grab all the cited keys in the markdown
@@ -174,6 +176,15 @@ class BibTexPlugin(BasePlugin):
             markdown,
         )
 
+        # 6. Insert all bibliography available
+        list_bib_command = self.config.get("list_bib_command", "\\list_bibliography")
+
+        markdown = re.sub(
+            re.escape(list_bib_command),
+            self.list_bibliography,
+            markdown,
+        )
+
         return markdown
 
     def format_footnote_key(self, number):
@@ -211,7 +222,7 @@ class BibTexPlugin(BasePlugin):
         keys = list(OrderedDict.fromkeys([k for _, k in pairs]).keys())
         numbers = {k: str(n + 1) for n, k in enumerate(keys)}
 
-        # Remove non-existant keys from pairs
+        # Remove non-existent keys from pairs
         pairs = [p for p in pairs if p[1] in self.bib_data.entries]
 
         # 2. Collect any unformatted reference keys
@@ -254,5 +265,23 @@ class BibTexPlugin(BasePlugin):
                 citation,
             )
             bibliography.append(bibliography_text)
+
+        return "\n".join(bibliography)
+
+    @property
+    def list_bibliography(self):
+        """
+        Returns the all bibliography text
+        """
+        references: dict = {}
+        log.debug("Formatting all bib data entries...")
+        if self.csl_file:
+            references = format_pandoc(self.bib_data.entries, self.csl_file)
+        else:
+            references = format_simple(self.bib_data.entries)
+
+        bibliography = []
+        for number, (key, citation) in enumerate(references.items()):
+            bibliography.append(f"- {citation}\n")
 
         return "\n".join(bibliography)
