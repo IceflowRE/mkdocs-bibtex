@@ -52,6 +52,7 @@ class BibTexPlugin(BasePlugin):
     def __init__(self):
         self.bib_data = None
         self.all_references = OrderedDict()
+        self.formatted_references = None
         self.unescape_for_arithmatex = False
         self.configured = False
 
@@ -95,6 +96,7 @@ class BibTexPlugin(BasePlugin):
 
         # Clear references on reconfig
         self.all_references = OrderedDict()
+        self.formatted_references = None
 
         self.bib_data = BibliographyData(entries=refs)
         self.bib_data_bibtex = self.bib_data.to_string("bibtex")
@@ -273,15 +275,15 @@ class BibTexPlugin(BasePlugin):
         """
         Returns the all bibliography text
         """
-        references: dict = {}
-        log.debug("Formatting all bib data entries...")
-        if self.csl_file:
-            references = format_pandoc(self.bib_data.entries, self.csl_file)
-        else:
-            references = format_simple(self.bib_data.entries)
+        if self.formatted_references is None:
+            log.debug("Formatting all bib data entries...")
+            if self.csl_file:
+                self.formatted_references = format_pandoc(self.bib_data.entries, self.csl_file)
+            else:
+                self.formatted_references = format_simple(self.bib_data.entries)
 
         bibliography = []
-        for number, (key, citation) in enumerate(references.items()):
+        for number, (key, citation) in enumerate(self.formatted_references.items()):
             bibliography.append(f"- {citation}\n")
 
         return "\n".join(bibliography)
